@@ -186,7 +186,8 @@ func main() {
 			log.Fatalf("Can't get list of files")
 		}
 		for _, entry := range entries {
-			fmt.Printf("%10s - %s\n", byteUnitStr(entry.Size), entry.Name)
+			fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
+				byteUnitStr(entry.Size), entry.Name)
 		}
 	}
 
