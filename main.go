@@ -66,7 +66,7 @@ func downloadFile(ftpClient *ftp.ServerConn, filename string, size uint64) error
 
 		bar_len := int(size.Col) - len(filename) - len(progress) - 3
 
-		bar := ioprogress.DrawTextFormatBar(int64(bar_len))
+		bar := newProgressBar(int64(bar_len))
 		return fmt.Sprintf("%s: %s %s", filename, bar(a, b), progress)
 	}
 	progressR := &ioprogress.Reader{
