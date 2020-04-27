@@ -20,31 +20,15 @@ func check(err error) {
 }
 
 func connectToFtp() (*ftp.ServerConn, error) {
-	homeDir := os.Getenv("HOME")
-	if len(homeDir) == 0 {
-		return nil, errors.New("$HOME variable is empty")
-	}
+	config, err := readConfig()
+	check(err)
 
-	server, err := readDataFromFile(homeDir + "/.ftp/server")
-	if err != nil {
-		return nil, errors.New("can't read file ~/.ftp/server")
-	}
-	login, err := readDataFromFile(homeDir + "/.ftp/login")
-	if err != nil {
-		return nil, errors.New("can't read file ~/.ftp/login")
-	}
-
-	pass, err := readDataFromFile(homeDir + "/.ftp/pass")
-	if err != nil {
-		return nil, errors.New("can't read file ~/.ftp/pass")
-	}
-
-	ftpClient, err := ftp.Dial(server+":21", ftp.DialWithTimeout(5*time.Second))
+	ftpClient, err := ftp.Dial(config.Server+":21", ftp.DialWithTimeout(5*time.Second))
 	if err != nil {
 		return nil, errors.New("can't connect to server")
 	}
 
-	if err := ftpClient.Login(login, pass); err != nil {
+	if err := ftpClient.Login(config.Login, config.Pass); err != nil {
 		return nil, errors.New("can't auth on server")
 	}
 
@@ -112,18 +96,6 @@ loop:
 		time.Sleep(1 * time.Second)
 	}
 	return size, nil
-}
-
-func readDataFromFile(filename string) (string, error) {
-	dat, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return "", err
-	}
-
-	str := string(dat)
-	str = str[0 : len(str)-1]
-
-	return str, nil
 }
 
 func calcMD5(filename string) string {
