@@ -13,12 +13,14 @@ func newProgressBar(width int64) func(int64, int64) string {
 
 		res := fmt.Sprintf("[%s", strings.Repeat("-", int(current)))
 		if current != width {
+			// Enable yellow color
 			res += "\033[1;33m"
 			if (current % 2) == 1 {
 				res += "c"
 			} else {
 				res += "C"
 			}
+			// Reset color
 			res += "\033[0m"
 
 			for i := int64(0); i <= (width - current - 2); i++ {
