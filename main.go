@@ -27,16 +27,16 @@ func connectToFtp() (*ftp.ServerConn, error) {
 
 	server, err := readDataFromFile(homeDir + "/.ftp/server")
 	if err != nil {
-		return nil, errors.New("can't read server")
+		return nil, errors.New("can't read file ~/.ftp/server")
 	}
 	login, err := readDataFromFile(homeDir + "/.ftp/login")
 	if err != nil {
-		return nil, errors.New("can't read login")
+		return nil, errors.New("can't read file ~/.ftp/login")
 	}
 
 	pass, err := readDataFromFile(homeDir + "/.ftp/pass")
 	if err != nil {
-		return nil, errors.New("can't read pass")
+		return nil, errors.New("can't read file ~/.ftp/pass")
 	}
 
 	ftpClient, err := ftp.Dial(server+":21", ftp.DialWithTimeout(5*time.Second))
@@ -156,6 +156,34 @@ func main() {
 	var fileslist []string
 	f_removeOnly := false
 	f_list := false
+	f_help := false
+
+	/**
+	 * Parse arguments
+	 */
+	for _, token := range os.Args[1:] {
+		if token == "-d" || token == "--delete" {
+			f_removeOnly = true
+			continue
+		} else if token == "-l" || token == "--list" {
+			f_list = true
+			continue
+		} else if token == "-h" || token == "--help" {
+			f_help = true
+			break
+		}
+		fileslist = append(fileslist, token)
+	}
+
+	if len(os.Args) == 1 || f_help {
+		fmt.Println("Usage:", os.Args[0], "[-h]", "[-l]", "[-d]", "[FILES]...")
+		fmt.Println()
+		fmt.Println("optional arguments:")
+		fmt.Println("  -h, --help       show this help message and exit")
+		fmt.Println("  -l, --list       show available files on the server and exit")
+		fmt.Println("  -d, --delete     delete files without downloading")
+		return
+	}
 
 	/**
 	 * Connect to server
@@ -163,19 +191,6 @@ func main() {
 	client, err := connectToFtp()
 	check(err)
 
-	/**
-	 * Parse arguments
-	 */
-	for _, token := range os.Args[1:] {
-		if token == "-d" {
-			f_removeOnly = true
-			continue
-		} else if token == "-l" {
-			f_list = true
-			continue
-		}
-		fileslist = append(fileslist, token)
-	}
 
 	/**
 	 * Show list files
@@ -189,6 +204,7 @@ func main() {
 			fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
 				byteUnitStr(entry.Size), entry.Name)
 		}
+		return
 	}
 
 	/**
