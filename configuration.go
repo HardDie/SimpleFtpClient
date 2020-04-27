@@ -1,7 +1,9 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 )
@@ -10,6 +12,22 @@ type config_t struct {
 	Server string
 	Login  string
 	Pass   string
+}
+
+func configExample() {
+	config := config_t{
+		Server: "8.8.8.8",
+		Login:  "user",
+		Pass:   "password",
+	}
+
+	data, err := json.MarshalIndent(config, "", "	")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("config.json example:")
+	fmt.Println(string(data))
 }
 
 func readDataFromFile(filename string) (string, error) {
@@ -24,7 +42,7 @@ func readDataFromFile(filename string) (string, error) {
 	return str, nil
 }
 
-func readConfig() (*config_t, error) {
+func readFromHomeDirectory() (*config_t, error) {
 	config := config_t{}
 
 	homeDir := os.Getenv("HOME")
@@ -51,4 +69,33 @@ func readConfig() (*config_t, error) {
 	}
 
 	return &config, nil
+}
+
+func readFromJson() (*config_t, error) {
+	config := config_t{}
+
+	data, err := ioutil.ReadFile("config.json")
+	if err != nil {
+		configExample()
+		return nil, errors.New("Can't read data fom config.json")
+	}
+
+	if err := json.Unmarshal(data, config); err != nil {
+		configExample()
+		return nil, errors.New("Can't parse json config")
+	}
+
+	return &config, nil
+}
+
+func readConfig() (*config_t, error) {
+	f_ReadFromJson := true
+	if _, err := os.Stat("config.json"); os.IsNotExist(err) {
+		f_ReadFromJson = false
+	}
+
+	if f_ReadFromJson {
+		return readFromJson()
+	}
+	return readFromHomeDirectory()
 }
