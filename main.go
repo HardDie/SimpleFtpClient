@@ -12,6 +12,7 @@ import (
 	"os"
 	"sort"
 	"time"
+	"bufio"
 )
 
 func check(err error) {
@@ -143,6 +144,7 @@ func main() {
 	f_removeOnly := false
 	f_list := false
 	f_help := false
+	f_deleteAll := false
 
 	/**
 	 * Parse arguments
@@ -157,6 +159,9 @@ func main() {
 		} else if token == "-h" || token == "--help" {
 			f_help = true
 			break
+		} else if token == "--delete-all" {
+			f_deleteAll = true
+			break
 		}
 		fileslist = append(fileslist, token)
 	}
@@ -168,6 +173,7 @@ func main() {
 		fmt.Println("  -h, --help       show this help message and exit")
 		fmt.Println("  -l, --list       show available files on the server and exit")
 		fmt.Println("  -d, --delete     delete files without downloading")
+		fmt.Println("  --delete-all     delete all available files on server")
 		return
 	}
 
@@ -185,10 +191,59 @@ func main() {
 		if err != nil {
 			log.Fatalf("Can't get list of files")
 		}
+
+		if len(entries) == 0 {
+			fmt.Println("FTP server is empty!")
+			return
+		}
+
 		sort.Sort(ftpEntry(entries))
 		for _, entry := range entries {
 			fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
 				byteUnitStr(entry.Size), entry.Name)
+		}
+		return
+	}
+
+	/**
+	 * Delete all files
+	 */
+	if f_deleteAll {
+		entries, err := client.List("/")
+		if err != nil {
+			log.Fatalf("Can't get list of files")
+		}
+		sort.Sort(ftpEntry(entries))
+		for _, entry := range entries {
+			fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
+				byteUnitStr(entry.Size), entry.Name)
+		}
+
+		if len(entries) == 0 {
+			fmt.Println("FTP server is empty!")
+			return
+		}
+
+		fmt.Println()
+		fmt.Println("Are you sure you are want delete all this files? [Type: YES]:")
+
+		reader := bufio.NewReader(os.Stdin)
+		text, err := reader.ReadString('\n')
+		if err != nil {
+			log.Fatalf("Can't read user input")
+		}
+
+		if text != "YES\n" {
+			fmt.Println("Operation canceled")
+			return
+		}
+
+		for _, entry := range entries {
+			if err = deleteFile(client, entry.Name); err != nil {
+				fmt.Printf("%s: Skiped!\n", entry.Name)
+			} else {
+				fmt.Printf("%s: Deleted!\n", entry.Name)
+			}
 		}
 		return
 	}
