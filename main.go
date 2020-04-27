@@ -197,6 +197,8 @@ func main() {
 
 		if !f_removeOnly {
 			fmt.Printf("%s: Done! md5sum = %s\n", file, calcMD5(file))
+		} else {
+			fmt.Printf("%s: Deleted!\n", file)
 		}
 	}
 
