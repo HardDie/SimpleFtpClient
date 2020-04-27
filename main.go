@@ -48,7 +48,7 @@ func downloadFile(ftpClient *ftp.ServerConn, filename string, size uint64) error
 		size := getTTYSize()
 		progress := ioprogress.DrawTextFormatBytes(a, b)
 
-		bar_len := int(size.Col) - len(filename) - len(progress) - 3
+		bar_len := int(size.Col) - len(filename) - len(progress) - 14
 
 		bar := newProgressBar(int64(bar_len))
 		return fmt.Sprintf("%s: %s %s", filename, bar(a, b), progress)
