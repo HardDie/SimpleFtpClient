@@ -126,20 +126,7 @@ func byteUnitStr(n uint64) string {
 	return fmt.Sprintf("%.3g %s", size, unit)
 }
 
-// Methods for sorting entries
-type ftpEntry []*ftp.Entry
-
-func (e ftpEntry) Len() int {
-	return len(e)
-}
-func (e ftpEntry) Swap(i, j int) {
-	e[i], e[j] = e[j], e[i]
-}
-func (e ftpEntry) Less(i, j int) bool {
-	return (e[i].Time.UnixNano()) < (e[j].Time.UnixNano())
-}
-
-func printListFiles(ftpClient *ftp.ServerConn) (ftpEntry, error) {
+func printListFiles(ftpClient *ftp.ServerConn) ([]*ftp.Entry, error) {
 	entries, err := ftpClient.List("/")
 	if err != nil {
 		return nil, errors.New("Can't get list of files")
@@ -150,7 +137,9 @@ func printListFiles(ftpClient *ftp.ServerConn) (ftpEntry, error) {
 		return nil, nil
 	}
 
-	sort.Sort(ftpEntry(entries))
+	sort.SliceStable(entries, func(i, j int) bool {
+		return (entries[i].Time.UnixNano()) < (entries[j].Time.UnixNano())
+	})
 	for _, entry := range entries {
 		fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
 			byteUnitStr(entry.Size), entry.Name)
