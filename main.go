@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/md5"
 	"errors"
 	"fmt"
@@ -12,7 +13,6 @@ import (
 	"os"
 	"sort"
 	"time"
-	"bufio"
 )
 
 func check(err error) {
@@ -139,12 +139,39 @@ func (e ftpEntry) Less(i, j int) bool {
 	return (e[i].Time.UnixNano()) < (e[j].Time.UnixNano())
 }
 
+func printListFiles(ftpClient *ftp.ServerConn) (ftpEntry, error) {
+	entries, err := ftpClient.List("/")
+	if err != nil {
+		return nil, errors.New("Can't get list of files")
+	}
+
+	if len(entries) == 0 {
+		fmt.Println("FTP server is empty!")
+		return nil, nil
+	}
+
+	sort.Sort(ftpEntry(entries))
+	for _, entry := range entries {
+		fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
+			byteUnitStr(entry.Size), entry.Name)
+	}
+	return entries, nil
+}
+
+type mode_t int
+
+const (
+	MODE_HELP mode_t = iota
+	MODE_LIST
+	MODE_DOWNLOAD
+	MODE_DELETE_ALL
+)
+
 func main() {
+	mode := MODE_HELP
+
 	var fileslist []string
 	f_removeOnly := false
-	f_list := false
-	f_help := false
-	f_deleteAll := false
 
 	/**
 	 * Parse arguments
@@ -154,19 +181,21 @@ func main() {
 			f_removeOnly = true
 			continue
 		} else if token == "-l" || token == "--list" {
-			f_list = true
-			continue
+			mode = MODE_LIST
+			break
 		} else if token == "-h" || token == "--help" {
-			f_help = true
+			mode = MODE_HELP
 			break
 		} else if token == "--delete-all" {
-			f_deleteAll = true
+			mode = MODE_DELETE_ALL
 			break
 		}
+		mode = MODE_DOWNLOAD
 		fileslist = append(fileslist, token)
 	}
 
-	if len(os.Args) == 1 || f_help {
+	switch mode {
+	case MODE_HELP:
 		fmt.Println("Usage:", os.Args[0], "[-h]", "[-l]", "[-d]", "[FILES]...")
 		fmt.Println()
 		fmt.Println("optional arguments:")
@@ -183,44 +212,15 @@ func main() {
 	client, err := connectToFtp()
 	check(err)
 
-	/**
-	 * Show list files
-	 */
-	if f_list {
-		entries, err := client.List("/")
-		if err != nil {
-			log.Fatalf("Can't get list of files")
-		}
-
-		if len(entries) == 0 {
-			fmt.Println("FTP server is empty!")
-			return
-		}
-
-		sort.Sort(ftpEntry(entries))
-		for _, entry := range entries {
-			fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
-				byteUnitStr(entry.Size), entry.Name)
-		}
+	switch mode {
+	case MODE_LIST:
+		_, err := printListFiles(client)
+		check(err)
 		return
-	}
-
-	/**
-	 * Delete all files
-	 */
-	if f_deleteAll {
-		entries, err := client.List("/")
-		if err != nil {
-			log.Fatalf("Can't get list of files")
-		}
-		sort.Sort(ftpEntry(entries))
-		for _, entry := range entries {
-			fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
-				byteUnitStr(entry.Size), entry.Name)
-		}
-
-		if len(entries) == 0 {
-			fmt.Println("FTP server is empty!")
+	case MODE_DELETE_ALL:
+		entries, err := printListFiles(client)
+		check(err)
+		if entries == nil {
 			return
 		}
 
@@ -246,28 +246,25 @@ func main() {
 			}
 		}
 		return
-	}
-
-	/**
-	 * Download all files one by one
-	 */
-	for _, file := range fileslist {
-		fmt.Printf("%v: Wait...\r", file)
-		size, err := waitForFile(client, file)
-		check(err)
-
-		if !f_removeOnly {
-			err = downloadFile(client, file, size)
+	case MODE_DOWNLOAD:
+		for _, file := range fileslist {
+			fmt.Printf("%v: Wait...\r", file)
+			size, err := waitForFile(client, file)
 			check(err)
-		}
 
-		err = deleteFile(client, file)
-		check(err)
+			if !f_removeOnly {
+				err = downloadFile(client, file, size)
+				check(err)
+			}
 
-		if !f_removeOnly {
-			fmt.Printf("%s: Done! md5sum = %s\n", file, calcMD5(file))
-		} else {
-			fmt.Printf("%s: Deleted!\n", file)
+			err = deleteFile(client, file)
+			check(err)
+
+			if !f_removeOnly {
+				fmt.Printf("%s: Done! md5sum = %s\n", file, calcMD5(file))
+			} else {
+				fmt.Printf("%s: Deleted!\n", file)
+			}
 		}
 	}
 
