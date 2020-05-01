@@ -12,6 +12,7 @@ import (
 	"log"
 	"os"
 	"sort"
+	"strconv"
 	"time"
 )
 
@@ -140,8 +141,8 @@ func printListFiles(ftpClient *ftp.ServerConn) ([]*ftp.Entry, error) {
 	sort.SliceStable(entries, func(i, j int) bool {
 		return (entries[i].Time.UnixNano()) < (entries[j].Time.UnixNano())
 	})
-	for _, entry := range entries {
-		fmt.Printf("%v %8s - %s\n", entry.Time.Format("2006-01-02 15:04:05"),
+	for i, entry := range entries {
+		fmt.Printf("%d) %v %8s - %s\n", i, entry.Time.Format("2006-01-02 15:04:05"),
 			byteUnitStr(entry.Size), entry.Name)
 	}
 	return entries, nil
@@ -154,10 +155,11 @@ const (
 	MODE_LIST
 	MODE_DOWNLOAD
 	MODE_DELETE_ALL
+	MODE_DOWNLOAD_BY_INDEX
 )
 
 func main() {
-	mode := MODE_HELP
+	mode := MODE_DOWNLOAD_BY_INDEX
 
 	var fileslist []string
 	f_removeOnly := false
@@ -254,6 +256,44 @@ func main() {
 			} else {
 				fmt.Printf("%s: Deleted!\n", file)
 			}
+		}
+	case MODE_DOWNLOAD_BY_INDEX:
+		entries, err := printListFiles(client)
+		check(err)
+		if entries == nil {
+			return
+		}
+
+		fmt.Println()
+		fmt.Println("Choose file:")
+
+		scanner := bufio.NewScanner(os.Stdin)
+		scanner.Scan()
+		if err != nil {
+			log.Fatalf("Can't read user input")
+		}
+
+		val, err := strconv.Atoi(scanner.Text())
+		check(err)
+
+		if val < 0 || val >= len(entries) {
+			log.Fatalf("Wrong value!")
+		}
+
+		file := entries[val].Name
+		size := entries[val].Size
+		if !f_removeOnly {
+			err = downloadFile(client, file, size)
+			check(err)
+		}
+
+		err = deleteFile(client, file)
+		check(err)
+
+		if !f_removeOnly {
+			fmt.Printf("%s: Done! md5sum = %s\n", file, calcMD5(file))
+		} else {
+			fmt.Printf("%s: Deleted!\n", file)
 		}
 	}
 
