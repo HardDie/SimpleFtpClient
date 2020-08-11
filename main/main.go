@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"crypto/md5"
 	"errors"
+	"flag"
 	"fmt"
 	"github.com/jlaffaye/ftp"
 	"github.com/mitchellh/ioprogress"
@@ -151,8 +152,7 @@ func printListFiles(ftpClient *ftp.ServerConn) ([]*ftp.Entry, error) {
 type mode_t int
 
 const (
-	MODE_HELP mode_t = iota
-	MODE_LIST
+	MODE_LIST mode_t = iota
 	MODE_DOWNLOAD
 	MODE_DELETE_ALL
 	MODE_DOWNLOAD_BY_INDEX
@@ -162,39 +162,25 @@ func main() {
 	mode := MODE_DOWNLOAD_BY_INDEX
 
 	var fileslist []string
-	f_removeOnly := false
+
+	f_removeOnly := flag.Bool("delete", false, "delete files without downloading")
+	f_listOnly := flag.Bool("list", false, "show available file on the server and exit")
+	f_deleteAll := flag.Bool("delete-all", false, "delete all available files on server")
+
+	flag.Parse()
 
 	/**
 	 * Parse arguments
 	 */
-	for _, token := range os.Args[1:] {
-		if token == "-d" || token == "--delete" {
-			f_removeOnly = true
-			continue
-		} else if token == "-l" || token == "--list" {
-			mode = MODE_LIST
-			break
-		} else if token == "-h" || token == "--help" {
-			mode = MODE_HELP
-			break
-		} else if token == "--delete-all" {
-			mode = MODE_DELETE_ALL
-			break
+	if *f_listOnly {
+		mode = MODE_LIST
+	} else if *f_deleteAll {
+		mode = MODE_DELETE_ALL
+	} else {
+		for _, token := range os.Args[1:] {
+			mode = MODE_DOWNLOAD
+			fileslist = append(fileslist, token)
 		}
-		mode = MODE_DOWNLOAD
-		fileslist = append(fileslist, token)
-	}
-
-	switch mode {
-	case MODE_HELP:
-		fmt.Println("Usage:", os.Args[0], "[-h]", "[-l]", "[-d]", "[FILES]...")
-		fmt.Println()
-		fmt.Println("optional arguments:")
-		fmt.Println("  -h, --help       show this help message and exit")
-		fmt.Println("  -l, --list       show available files on the server and exit")
-		fmt.Println("  -d, --delete     delete files without downloading")
-		fmt.Println("  --delete-all     delete all available files on server")
-		return
 	}
 
 	/**
@@ -243,7 +229,7 @@ func main() {
 			size, err := waitForFile(client, file)
 			check(err)
 
-			if !f_removeOnly {
+			if !(*f_removeOnly) {
 				err = downloadFile(client, file, size)
 				check(err)
 			}
@@ -251,7 +237,7 @@ func main() {
 			err = deleteFile(client, file)
 			check(err)
 
-			if !f_removeOnly {
+			if !(*f_removeOnly) {
 				fmt.Printf("%s: Done! md5sum = %s\n", file, calcMD5(file))
 			} else {
 				fmt.Printf("%s: Deleted!\n", file)
@@ -282,7 +268,7 @@ func main() {
 
 		file := entries[val].Name
 		size := entries[val].Size
-		if !f_removeOnly {
+		if !(*f_removeOnly) {
 			err = downloadFile(client, file, size)
 			check(err)
 		}
@@ -290,7 +276,7 @@ func main() {
 		err = deleteFile(client, file)
 		check(err)
 
-		if !f_removeOnly {
+		if !(*f_removeOnly) {
 			fmt.Printf("%s: Done! md5sum = %s\n", file, calcMD5(file))
 		} else {
 			fmt.Printf("%s: Deleted!\n", file)

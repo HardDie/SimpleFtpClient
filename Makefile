@@ -1,2 +1,3 @@
 all:
-	GOPATH=${PWD} go build
+	mkdir -p bin
+	GOPATH=${PWD} go build -o bin/SimpleFtpClient main/*
