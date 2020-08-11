@@ -1,6 +1,7 @@
 package main
 
 import (
+	"SimpleFtpClient/internal/pkg/ttysize"
 	"bufio"
 	"crypto/md5"
 	"errors"
@@ -49,7 +50,7 @@ func downloadFile(ftpClient *ftp.ServerConn, filename string, size uint64) error
 
 	// Progress bar
 	myDraw := func(a, b int64) string {
-		size := getTTYSize()
+		size := ttysize.GetTTYSize()
 		progress := ioprogress.DrawTextFormatBytes(a, b)
 
 		bar_len := int(size.Col) - len(filename) - len(progress) - 14
